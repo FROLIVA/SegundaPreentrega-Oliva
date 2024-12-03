@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos en Tiempo Real</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 0;
+            margin: 0;
+        }
+
+        header {
+            background-color: #007BFF;
+            color: white;
+            text-align: center;
+            padding: 15px;
+        }
+
+        main {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        form {
+            margin-bottom: 20px;
+            display: grid;
+            grid-gap: 10px;
+        }
+
+        input,
+        button {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Gestión de Productos en Tiempo Real</h1>
+    </header>
+    <main>
+        <form id="productForm">
+            <input type="text" id="title" placeholder="Título del producto" required>
+            <input type="text" id="description" placeholder="Descripción del producto" required>
+            <input type="text" id="code" placeholder="Código del producto" required>
+            <input type="number" id="price" placeholder="Precio" required>
+            <input type="number" id="stock" placeholder="Stock" required>
+            <input type="text" id="category" placeholder="Categoría" required>
+            <button type="submit">Agregar Producto</button>
+        </form>
+        <ul id="productList"></ul>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const productForm = document.getElementById('productForm');
+        const productList = document.getElementById('productList');
+
+        socket.on('initialProducts', (products) => {
+            productList.innerHTML = '';
+            products.forEach((product) => appendProduct(product));
+        });
+
+        productForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const product = {
+                title: document.getElementById('title').value.trim(),
+                description: document.getElementById('description').value.trim(),
+                code: document.getElementById('code').value.trim(),
+                price: parseFloat(document.getElementById('price').value),
+                stock: parseInt(document.getElementById('stock').value),
+                category: document.getElementById('category').value.trim()
+            };
+            if (Object.values(product).includes('') || isNaN(product.price) || isNaN(product.stock)) {
+                alert('Completa todos los campos correctamente.');
+                return;
+            }
+            socket.emit('newProduct', product);
+            productForm.reset();
+        });
+
+        socket.on('productAdded', (product) => appendProduct(product));
+        socket.on('productDeleted', (id) => {
+            const product = document.querySelector(`[data-id="${id}"]`);
+            if (product) product.remove();
+        });
+
+        productList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+                const li = e.target.closest('li');
+                const id = li.dataset.id;
+                socket.emit('deleteProduct', id);
+            }
+        });
+
+        function appendProduct(product) {
+            const li = document.createElement('li');
+            li.dataset.id = product.id;
+            li.innerHTML = `
+        ${product.title} - $${product.price.toFixed(2)}
+        <button class="delete-btn">Eliminar</button>
+      `;
+            productList.appendChild(li);
+        }
+    </script>
+</body>
+
+</html>
